@@ -20,7 +20,7 @@ El diseño arquitectónico impone una restricción técnica crítica para garant
 Regla clave: si el servicio A necesita un dato del servicio B, lo pide por API o lo recibe por evento — nunca accede directamente a la base de datos de B.
 
 ## Arquitectura 
-
+```
 INTERNET
    │
    ▼
@@ -59,3 +59,4 @@ notification-service (interno, SIN flecha del gateway)
 Todos los servicios → Cloud Logging
 Todos los servicios → Secret Manager (al iniciar)
 GitHub Actions → Artifact Registry → Cloud Run (CI/CD)
+```
