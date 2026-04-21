@@ -1,0 +1,118 @@
+openapi: 3.0.3
+info:
+  title: payment-service
+  description: |
+    Procesamiento de pagos con Stripe.
+    Los datos de tarjeta NUNCA pasan por este servicio — solo maneja PaymentIntents y webhooks.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8005
+    description: Desarrollo local
+
+tags:
+  - name: Checkout
+  - name: Webhooks
+
+paths:
+
+  /checkout/payment-intent:
+    post:
+      tags: [Checkout]
+      summary: Crear PaymentIntent en Stripe
+      description: |
+        Crea un PaymentIntent en Stripe y retorna el `client_secret` al frontend.
+        El frontend usa este `client_secret` para confirmar el pago directamente con Stripe
+        usando Stripe Elements — los datos de tarjeta nunca tocan el backend.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [shipping_address]
+              properties:
+                shipping_address:
+                  type: object
+                  required: [street, city, department]
+                  properties:
+                    street:
+                      type: string
+                    city:
+                      type: string
+                    department:
+                      type: string
+                    postal_code:
+                      type: string
+      responses:
+        '200':
+          description: PaymentIntent creado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  client_secret:
+                    type: string
+                    description: Secret para confirmar pago con Stripe.js en el frontend
+                  payment_intent_id:
+                    type: string
+                  amount:
+                    type: number
+                  currency:
+                    type: string
+                    example: cop
+        '400':
+          description: Carrito vacío o con problemas de stock
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /webhooks/stripe:
+    post:
+      tags: [Webhooks]
+      summary: Webhook de Stripe — eventos de pago
+      description: |
+        Endpoint llamado por Stripe cuando ocurre un evento de pago.
+        **No requiere JWT** — la autenticación es mediante la firma `Stripe-Signature`.
+        Eventos procesados:
+        - `payment_intent.succeeded` → publica evento en Pub/Sub [order-events]
+        - `payment_intent.payment_failed` → publica evento en Pub/Sub [order-events]
+      parameters:
+        - name: Stripe-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Firma del webhook de Stripe para validación
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Payload del evento Stripe (estructura variable por tipo de evento)
+      responses:
+        '200':
+          description: Webhook procesado correctamente
+        '400':
+          description: Firma inválida o payload malformado
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorized:
+      description: Token inválido o expirado
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              detail:
+                type: string

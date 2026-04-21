@@ -1,0 +1,205 @@
+openapi: 3.0.3
+info:
+  title: cart-service
+  description: Gestión del carrito de compras. Estado almacenado en Redis.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8003
+    description: Desarrollo local
+
+tags:
+  - name: Cart
+  - name: Checkout
+
+paths:
+
+  /cart:
+    get:
+      tags: [Cart]
+      summary: Obtener carrito del comprador autenticado
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Carrito actual con precios actualizados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /cart/items:
+    post:
+      tags: [Cart]
+      summary: Agregar producto al carrito
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [product_id, quantity]
+              properties:
+                product_id:
+                  type: string
+                quantity:
+                  type: integer
+                  minimum: 1
+      responses:
+        '200':
+          description: Producto agregado, carrito actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '400':
+          description: Stock insuficiente
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Producto no encontrado o no activo
+
+  /cart/items/{product_id}:
+    patch:
+      tags: [Cart]
+      summary: Actualizar cantidad de un producto en el carrito
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: product_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantity]
+              properties:
+                quantity:
+                  type: integer
+                  minimum: 1
+      responses:
+        '200':
+          description: Carrito actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '400':
+          description: Stock insuficiente
+        '404':
+          description: Producto no está en el carrito
+
+    delete:
+      tags: [Cart]
+      summary: Eliminar producto del carrito
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: product_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Producto eliminado, carrito actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '404':
+          description: Producto no está en el carrito
+
+  /checkout/summary:
+    get:
+      tags: [Checkout]
+      summary: Obtener resumen de orden antes de pagar
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Resumen con validación de stock en tiempo real
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutSummary'
+        '400':
+          description: Carrito vacío
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    CartItem:
+      type: object
+      properties:
+        product_id:
+          type: string
+        name:
+          type: string
+        unit_price:
+          type: number
+        quantity:
+          type: integer
+        subtotal:
+          type: number
+        seller_id:
+          type: string
+        stock_available:
+          type: integer
+        stock_warning:
+          type: boolean
+          description: True si la cantidad en carrito supera el stock actual
+
+    Cart:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+        total:
+          type: number
+        item_count:
+          type: integer
+
+    CheckoutSummary:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+        subtotal:
+          type: number
+        tax:
+          type: number
+        total:
+          type: number
+        has_stock_issues:
+          type: boolean
+          description: True si algún producto tiene problema de stock
+
+  responses:
+    Unauthorized:
+      description: Token inválido o expirado
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              detail:
+                type: string
