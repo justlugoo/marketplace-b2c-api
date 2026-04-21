@@ -11,7 +11,7 @@ El sistema debe soportar operaciones de un Marketplace B2C con flujos críticos 
 2. **Microservicios:** Mayor complejidad de red y despliegue, pero permite poliglotismo de persistencia (PostgreSQL/MongoDB) y escalado granular.
 
 ## Decisión
-Se elige **Microservicios**. Cada dominio (Auth, Catalog, Orders, Notifications) funcionará como un servicio independiente comunicado de forma asíncrona vía Kafka.
+Se elige **Microservicios**. Cada dominio (Auth, Catalog, Orders, Notifications) funcionará como un servicio independiente comunicado de forma asíncrona vía Google Pub/Sub.
 
 ## Consecuencias
 - **Positivas:** Aislamiento de fallos, escalabilidad horizontal independiente en GCP Cloud Run, optimización de bases de datos por caso de uso.
